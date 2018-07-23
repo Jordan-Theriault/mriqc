@@ -90,7 +90,34 @@ def anat_qc_workflow(dataset, settings, mod='T1w', name='anatMRIQC'):
     # 1. Reorient anatomical image
     to_ras = pe.Node(ConformImage(check_dtype=False), name='conform')
     # 2. Skull-stripping (afni)
-    asw = skullstrip_wf(n4_nthreads=settings.get('ants_nthreads', 1), unifize=False)
+    # asw = skullstrip_wf(n4_nthreads=settings.get('ants_nthreads', 1), unifize=False)
+    asw = pe.Workflow(name='skullstrip_wf')
+
+    inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']),
+                        name='inputnode')
+    outputnode = pe.Node(niu.IdentityInterface(
+        fields=['bias_corrected', 'out_file', 'out_mask', 'out_segs', 'out_report']),
+        name='outputnode')
+
+    bin_dilate = pe.Node(fsl.DilateImage(),
+                        name='bin_dilate')
+    bin_dilate.inputs.operation = 'mean'
+    bin_dilate.inputs.kernel_shape = 'sphere'
+    bin_dilate.inputs.kernel_size = settings['skull_kernel']
+    bin_dilate.inputs.args = '-bin'
+
+    mask_raw = pe.Node(fsl.ApplyMask(),
+                        name='mask_raw')
+
+    asw.connect([
+        (inputnode, outputnode, [('in_file', 'bias_corrected')]),
+        (inputnode, bin_dilate, [('in_file', 'in_file')]),
+        (bin_dilate, outputnode, [('out_file', 'out_mask')]),
+        (inputnode, mask_raw, [('in_file', 'in_file')]),
+        (bin_dilate, mask_raw, [('out_file', 'mask_file')]),
+        (mask_raw, outputnode, [('out_file', 'out_file')]),
+        ])
+
     # 3. Head mask
     hmsk = headmsk_wf()
     # 4. Spatial Normalization, using ANTs

@@ -134,6 +134,12 @@ def get_parser():
     g_ants.add_argument('--ants-settings', action='store',
                         help='path to JSON file with settings for ANTS')
 
+    # Jordan - skull dilation kernel
+    g_7Tcustom = parser.add_argument_group('7T IASL custom options')
+    g_7Tcustom.add_argument('--skull-kernel', dest='skull_kernel', default=2,
+                        help='X-voxel kernel for sphere dilation in custom skull stripping stage. default=2',
+                        type=int)
+
     # AFNI head motion correction settings
     g_afni = parser.add_argument_group('Specific settings for AFNI')
     g_afni.add_argument('--deoblique', action='store_true', default=False,
@@ -201,6 +207,7 @@ def main():
         'webapi_url': opts.webapi_url,
         'webapi_port': opts.webapi_port,
         'upload_strict': opts.upload_strict,
+        'skull_kernel': opts.skull_kernel
     }
 
     if opts.hmc_afni:
@@ -285,7 +292,7 @@ def main():
             run=opts.run_id,
             task=opts.task_id,
         )
-        
+
         log.info(
             'Running MRIQC-%s (analysis_levels=[%s], participant_label=%s)\n\tSettings=%s',
             __version__, ', '.join(analysis_levels), opts.participant_label, settings)
